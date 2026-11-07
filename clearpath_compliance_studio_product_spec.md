@@ -41,7 +41,9 @@ The left pane, top to bottom: Standard (the one reference document), Submit (the
 
 ## Comparison
 
-Submit walks the requirements in the standard and checks each one against the campaign text and the filing context. There is no numeric score. A phrase is marked when it is the campaign wording that requirement was checked against.
+Submit sends the standard, split into numbered requirements, plus the campaign and the filing context to an LLM through OpenRouter (`demo/server/compare.mjs`). The model returns one result per requirement: met or not, the exact campaign quotes, an explanation, and a suggested change. The server keeps only the quotes it can find in the campaign, and it writes the status itself: Changes required if any requirement is not met, Completed otherwise. There is no numeric score.
+
+The key lives in `demo/.env.local`, which git ignores, and only the dev server reads it. The browser never sees it. Copy `demo/.env.example` to `demo/.env.local` and set `OPENROUTER_API_KEY`. `OPENROUTER_MODEL` defaults to `nvidia/nemotron-3.5-super-vl:free`. Free models fall back to the Gemma 4 free models when rate-limited.
 
 ## Not in this demo
 

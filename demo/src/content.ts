@@ -33,7 +33,7 @@ export const standardBody = [
 ].join("\n");
 
 export const passingBody = [
-  "Personal loans from 6.99% APR.",
+  "Personal loans from 6.99% APR for qualified borrowers.",
   "",
   "Borrow $2,000 to $40,000 over 24 to 60 months. Rates as low as 6.99% APR for qualified borrowers, with rates up to 35.99% APR. An origination fee of 1%–8% of the loan amount may apply. Approval depends on a credit review.",
   "",

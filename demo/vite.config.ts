@@ -1,7 +1,7 @@
 import path from "node:path";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { pathToFileURL } from "node:url";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { artifacts } from "./src/content";
 
@@ -16,7 +16,12 @@ function readBody(req: IncomingMessage): Promise<string> {
   });
 }
 
-function compareApi(): Plugin {
+interface ModelEnv {
+  apiKey: string;
+  model: string;
+}
+
+function compareApi(env: ModelEnv): Plugin {
   return {
     name: "compare-api",
     configureServer(server) {
@@ -26,13 +31,13 @@ function compareApi(): Plugin {
           next();
           return;
         }
-        await handleCompare(req, res);
+        await handleCompare(req, res, env);
       });
     },
   };
 }
 
-async function handleCompare(req: IncomingMessage, res: ServerResponse) {
+async function handleCompare(req: IncomingMessage, res: ServerResponse, env: ModelEnv) {
   try {
     const body = JSON.parse(await readBody(req)) as {
       artifactId?: string;
@@ -57,6 +62,8 @@ async function handleCompare(req: IncomingMessage, res: ServerResponse) {
       location: body.location,
       deliveryDate: body.deliveryDate,
       domain: body.domain,
+      apiKey: env.apiKey,
+      model: env.model,
     });
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify(result));
@@ -67,7 +74,7 @@ async function handleCompare(req: IncomingMessage, res: ServerResponse) {
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.end(
       message === "fetch failed"
-        ? "Could not download the comparison model from Hugging Face. Run the dev server with network access, then submit again. The first run saves the model in demo/.cache."
+        ? "Could not reach OpenRouter. Run the dev server with network access, then submit again."
         : cause
           ? `${message}: ${cause}`
           : message,
@@ -75,12 +82,21 @@ async function handleCompare(req: IncomingMessage, res: ServerResponse) {
   }
 }
 
-export default defineConfig({
-  plugins: [react(), compareApi()],
-  server: {
-    port: 5173,
-    watch: {
-      ignored: ["**/.cache/**"],
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "OPENROUTER_");
+  return {
+    plugins: [
+      react(),
+      compareApi({
+        apiKey: env.OPENROUTER_API_KEY ?? "",
+        model: env.OPENROUTER_MODEL || "nvidia/nemotron-3.5-super-vl:free",
+      }),
+    ],
+    server: {
+      port: 5173,
+      watch: {
+        ignored: ["**/.cache/**", "**/.env*"],
+      },
     },
-  },
+  };
 });

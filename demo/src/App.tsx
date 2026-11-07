@@ -348,7 +348,7 @@ export function App() {
             {comparing ? (
               <div className="comparing">
                 <strong>Comparing</strong>
-                <p>Reading each requirement in the standard against this campaign.</p>
+                <p>The model is reading each requirement in the standard against this campaign. This takes up to a minute.</p>
               </div>
             ) : null}
 
