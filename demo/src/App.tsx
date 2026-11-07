@@ -76,6 +76,41 @@ type Perspective = "affiliate" | "compliance";
 const standard = artifacts.find((artifact) => artifact.kind === "reference") ?? artifacts[0];
 const campaigns = artifacts.filter((artifact) => artifact.kind === "campaign");
 
+type CompareResult = { note: string; findings: Finding[] };
+type CompareJob =
+  | { status: "pending" | "running" }
+  | { status: "done"; result: CompareResult }
+  | { status: "error"; error: string };
+
+const POLL_MS = 2500;
+const POLL_LIMIT_MS = 5 * 60 * 1000;
+
+async function waitForJob(jobId: string): Promise<CompareResult> {
+  const deadline = Date.now() + POLL_LIMIT_MS;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+    const response = await fetch(`/api/compare/${jobId}`, { cache: "no-store" });
+    const text = await response.text();
+    if (!response.ok) throw new Error(text || "Comparison failed");
+    const job = JSON.parse(text) as CompareJob;
+    if (job.status === "done") return job.result;
+    if (job.status === "error") throw new Error(job.error);
+  }
+  throw new Error("The comparison is taking too long. Submit again.");
+}
+
+async function requestComparison(body: object): Promise<CompareResult> {
+  const response = await fetch("/api/compare", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const text = await response.text();
+  if (!response.ok) throw new Error(text || "Comparison failed");
+  const parsed = JSON.parse(text) as CompareResult | { jobId: string };
+  return "jobId" in parsed ? waitForJob(parsed.jobId) : parsed;
+}
+
 function artifactById(id: string): Artifact {
   return artifacts.find((artifact) => artifact.id === id) ?? standard;
 }
@@ -135,14 +170,7 @@ export function App() {
     setCompareError(null);
     openArtifact(artifact.id);
     try {
-      const response = await fetch("/api/compare", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ artifactId: artifact.id, ...context }),
-      });
-      const text = await response.text();
-      if (!response.ok) throw new Error(text || "Comparison failed");
-      const result = JSON.parse(text) as { note: string; findings: Finding[] };
+      const result = await requestComparison({ artifactId: artifact.id, ...context });
       const entry: Submission = {
         id: crypto.randomUUID(),
         artifactId: artifact.id,

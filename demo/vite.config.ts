@@ -39,32 +39,15 @@ function compareApi(env: ModelEnv): Plugin {
 
 async function handleCompare(req: IncomingMessage, res: ServerResponse, env: ModelEnv) {
   try {
-    const body = JSON.parse(await readBody(req)) as {
-      artifactId?: string;
-      location?: string;
-      deliveryDate?: string;
-      domain?: string;
-    };
-    const campaign = artifacts.find((artifact) => artifact.id === body.artifactId && artifact.kind === "campaign");
-    const standard = artifacts.find((artifact) => artifact.id === "standard");
-    if (!campaign || !standard || !body.location || !body.deliveryDate || !body.domain) {
+    const body = JSON.parse(await readBody(req));
+    const { buildCompareInput, compareCampaign } = await import(compareModuleUrl);
+    const input = buildCompareInput(body, artifacts, env);
+    if (!input) {
       res.statusCode = 400;
       res.end("Choose a campaign, location, delivery date, and domain.");
       return;
     }
-
-    const { compareCampaign } = await import(compareModuleUrl);
-    const result = await compareCampaign({
-      standardTitle: standard.title,
-      standardText: standard.body,
-      campaignTitle: campaign.title,
-      campaignText: campaign.body,
-      location: body.location,
-      deliveryDate: body.deliveryDate,
-      domain: body.domain,
-      apiKey: env.apiKey,
-      model: env.model,
-    });
+    const result = await compareCampaign(input);
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify(result));
   } catch (error) {

@@ -146,6 +146,23 @@ async function askModel({ apiKey, model }, input, requirements) {
   return { usedModel: data.model ?? model, parsed: parseJson(content) };
 }
 
+export function buildCompareInput(body, artifacts, env) {
+  const campaign = artifacts.find((artifact) => artifact.id === body?.artifactId && artifact.kind === "campaign");
+  const standard = artifacts.find((artifact) => artifact.kind === "reference");
+  if (!campaign || !standard || !body.location || !body.deliveryDate || !body.domain) return null;
+  return {
+    standardTitle: standard.title,
+    standardText: standard.body,
+    campaignTitle: campaign.title,
+    campaignText: campaign.body,
+    location: String(body.location),
+    deliveryDate: String(body.deliveryDate),
+    domain: String(body.domain),
+    apiKey: env.apiKey,
+    model: env.model || "nvidia/nemotron-3.5-super-vl:free",
+  };
+}
+
 export async function compareCampaign(input) {
   if (!input.apiKey) {
     throw new Error("OPENROUTER_API_KEY is not set. Add it to demo/.env.local and restart npm run dev.");
